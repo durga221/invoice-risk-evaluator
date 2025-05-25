@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+pydantic
+web3
+requests
+python-dotenv
+aiohttp
+asyncio
+numpy
+pandas
+scikit-learn
+google-generativeai
+httpx
+cryptography
+python-jose[cryptography]
+passlib[bcrypt]
