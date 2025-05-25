@@ -17,6 +17,33 @@ The Invoice Risk Evaluator revolutionizes trade finance through an autonomous mu
 - 🎯 **95-98% accuracy** through AI-powered analysis
 - 🔒 **100% transparent** with blockchain-based immutable records
 
+## 📁 Project Structure
+
+```
+invoice-risk-evaluator/
+├── src/
+│   ├── agents/
+│   │   ├── __init__.py
+│   │   ├── credit_agent.py
+│   │   ├── identity_agent.py
+│   │   ├── risk_agent.py
+│   │   └── market_agent.py
+│   ├── integrations/
+│   │   ├── __init__.py
+│   │   ├── quex_oracle.py
+│   │   ├── civic_auth.py
+│   │   └── xdc_blockchain.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── risk_models.py
+│   └── main.py
+├── config/
+│   └── settings.py
+├── requirements.txt
+├── .env.example
+└── README.md
+```
+
 ## 🏗️ System Architecture
 
 ```mermaid
@@ -37,14 +64,17 @@ graph TB
 ## 🛠️ Technology Stack
 
 ### Core Framework
-- **[ElizaOS](https://elizaos.ai/)** - Agent orchestration framework
-- **[GOAT SDK](https://goat.tech/)** - Blockchain integration
-- **[XDC Network](https://xdc.network/)** - Mainnet deployment
-- **[Gemini LLM](https://ai.google.dev/)** - AI analysis engine
+- **[Python 3.9+](https://python.org/)** - Core application language
+- **[FastAPI](https://fastapi.tiangolo.com/)** - Web framework for API endpoints
+- **[AsyncIO](https://docs.python.org/3/library/asyncio.html)** - Asynchronous programming
+- **[Web3.py](https://web3py.readthedocs.io/)** - XDC Network blockchain integration
+- **[Gemini AI Python SDK](https://ai.google.dev/python-sdk)** - AI analysis engine
 
 ### Key Integrations
-- **[QUEX Oracle](https://quex.io/)** - Real-world financial data
-- **[Civic Auth](https://civic.com/)** - Identity verification & embedded wallets
+- **[QUEX Oracle Python Client](https://quex.io/docs/python)** - Real-world financial data
+- **[Civic Auth Python SDK](https://civic.com/docs/python)** - Identity verification & embedded wallets
+- **[Pydantic](https://pydantic-docs.helpmanual.io/)** - Data validation and settings management
+- **[SQLAlchemy](https://sqlalchemy.org/)** - Database ORM for data persistence
 
 ## 🤖 Multi-Agent System
 
@@ -117,7 +147,7 @@ graph TB
 
 ### Prerequisites
 
-- Node.js 18+
+- Python 3.9+
 - XDC Network wallet with XDC tokens
 - API credentials for:
   - Civic Auth
@@ -131,18 +161,22 @@ graph TB
 git clone https://github.com/your-org/invoice-risk-evaluator.git
 cd invoice-risk-evaluator
 
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Install dependencies
-npm install
+pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
 # Edit .env with your API credentials
 
 # Deploy smart contracts
-npm run deploy:xdc
+python -m src.integrations.xdc_blockchain deploy
 
 # Start the system
-npm run start
+python -m src.main
 ```
 
 ### Environment Variables
@@ -158,8 +192,25 @@ QUEX_ORACLE_API_KEY=your_quex_key
 GEMINI_AI_API_KEY=your_gemini_key
 
 # System Configuration
-ELIZA_CONFIG_PATH=./config/eliza.json
 RISK_THRESHOLD=50
+DATABASE_URL=postgresql://user:pass@localhost/invoice_risk_db
+```
+
+### Requirements.txt
+
+```txt
+fastapi==0.104.1
+uvicorn==0.24.0
+web3==6.11.3
+pydantic==2.5.0
+sqlalchemy==2.0.23
+asyncio-mqtt==0.16.1
+google-generativeai==0.3.2
+httpx==0.25.2
+pandas==2.1.3
+numpy==1.25.2
+python-dotenv==1.0.0
+websockets==12.0
 ```
 
 ## 📊 Use Cases
@@ -242,44 +293,89 @@ RISK_THRESHOLD=50
 
 ### Risk Assessment Endpoint
 
-```javascript
-POST /api/v1/assess-risk
+```python
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Dict, Any
+import asyncio
 
-{
-  "invoice": {
-    "amount": 50000,
-    "currency": "USD",
-    "dueDate": "2025-06-25",
-    "buyerInfo": {
-      "name": "TechCorp Solutions",
-      "taxId": "12-3456789"
-    }
-  }
-}
+app = FastAPI()
 
-// Response
-{
-  "riskScore": 15,
-  "riskLevel": "Very Low",
-  "confidence": 96,
-  "recommendation": "Approve with standard terms",
-  "factors": {
-    "creditScore": 780,
-    "paymentHistory": 98,
-    "marketConditions": "Stable"
-  },
-  "transactionId": "0x1234...abcd"
-}
+class InvoiceData(BaseModel):
+    amount: float
+    currency: str
+    due_date: str
+    buyer_info: Dict[str, str]
+
+class RiskAssessmentResponse(BaseModel):
+    risk_score: int
+    risk_level: str
+    confidence: int
+    recommendation: str
+    factors: Dict[str, Any]
+    transaction_id: str
+
+@app.post("/api/v1/assess-risk", response_model=RiskAssessmentResponse)
+async def assess_risk(invoice: InvoiceData):
+    try:
+        # Process invoice through multi-agent system
+        assessment = await risk_evaluator.process_invoice(invoice)
+        
+        return RiskAssessmentResponse(
+            risk_score=15,
+            risk_level="Very Low",
+            confidence=96,
+            recommendation="Approve with standard terms",
+            factors={
+                "credit_score": 780,
+                "payment_history": 98,
+                "market_conditions": "Stable"
+            },
+            transaction_id="0x1234...abcd"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 ```
 
 ### WebSocket Real-time Updates
 
-```javascript
-const ws = new WebSocket('wss://api.invoice-risk.com/ws');
+```python
+import asyncio
+import websockets
+import json
 
-ws.on('risk-update', (data) => {
-  console.log('Risk assessment completed:', data);
-});
+class WebSocketManager:
+    def __init__(self):
+        self.connections = set()
+    
+    async def connect(self, websocket):
+        self.connections.add(websocket)
+    
+    async def disconnect(self, websocket):
+        self.connections.remove(websocket)
+    
+    async def broadcast_risk_update(self, data):
+        if self.connections:
+            await asyncio.gather(
+                *[ws.send(json.dumps({
+                    "type": "risk-update",
+                    "data": data
+                })) for ws in self.connections],
+                return_exceptions=True
+            )
+
+manager = WebSocketManager()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except:
+        pass
+    finally:
+        await manager.disconnect(websocket)
 ```
 
 ## 🔍 Detailed Examples
@@ -297,193 +393,278 @@ Let's walk through a real invoice assessment to see how our agents work together
 
 #### Step 1: Identity Verification Agent (Civic Auth)
 
-```javascript
-// Traditional Way: Manual document verification
-❌ Upload documents → Manual review → Phone verification → Background check
-⏱️ Time: 2-3 days | 💰 Cost: $200-300 | 🔍 Accuracy: 85%
+```python
+# Traditional Way: Manual document verification
+# ❌ Upload documents → Manual review → Phone verification → Background check
+# ⏱️ Time: 2-3 days | 💰 Cost: $200-300 | 🔍 Accuracy: 85%
 
-// Our Agentic Approach: Civic Auth Integration
-✅ Automated identity verification with embedded wallet creation
+# Our Agentic Approach: Civic Auth Integration
+# ✅ Automated identity verification with embedded wallet creation
+
+from src.agents.identity_agent import IdentityVerificationAgent
+from src.integrations.civic_auth import CivicAuthClient
+
+class IdentityVerificationAgent:
+    def __init__(self, civic_client: CivicAuthClient):
+        self.civic_client = civic_client
+    
+    async def verify_identity(self, user_data: dict) -> dict:
+        """Verify identity using Civic Auth integration"""
+        try:
+            # Civic Auth verification
+            verification = await self.civic_client.verify({
+                "documents": user_data.get("documents"),
+                "biometrics": user_data.get("biometrics"),
+                "business_registration": user_data.get("business_info")
+            })
+            
+            # Create embedded wallet
+            wallet = await self.civic_client.create_embedded_wallet({
+                "user_id": verification["user_id"],
+                "permissions": ["invoice_trading", "payment_processing"]
+            })
+            
+            # Generate trust score
+            trust_score = self._calculate_trust_score({
+                "kyc_level": verification["kyc_level"],
+                "document_authenticity": verification["document_scores"],
+                "fraud_risk": verification["risk_assessment"]
+            })
+            
+            return {
+                "verified": verification["status"] == "VERIFIED",
+                "trust_score": trust_score,
+                "wallet": wallet["address"],
+                "compliance": verification["compliance_level"],
+                "identity_verification": {
+                    "status": "VERIFIED",
+                    "confidence": 98,
+                    "kyc_level": "FULL",
+                    "document_verification": {
+                        "business_registration": "VERIFIED",
+                        "tax_id": "VERIFIED",
+                        "director_ids": "VERIFIED"
+                    },
+                    "embedded_wallet": {
+                        "address": "xdc1234...5678",
+                        "created": "2025-05-25T10:30:00Z",
+                        "multi_sig_enabled": True
+                    },
+                    "risk_flags": [],
+                    "compliance_score": 95
+                }
+            }
+        except Exception as e:
+            raise Exception(f"Identity verification failed: {str(e)}")
+    
+    def _calculate_trust_score(self, factors: dict) -> int:
+        """Calculate trust score based on verification factors"""
+        base_score = 50
+        
+        # KYC level adjustment
+        kyc_bonus = {"BASIC": 10, "STANDARD": 20, "FULL": 30}.get(factors["kyc_level"], 0)
+        
+        # Document authenticity
+        doc_bonus = factors["document_authenticity"] * 0.2
+        
+        # Fraud risk penalty
+        fraud_penalty = factors["fraud_risk"] * 0.3
+        
+        return min(100, base_score + kyc_bonus + doc_bonus - fraud_penalty)
 ```
-
-**Civic Auth Data Retrieved:**
-```json
-{
-  "identityVerification": {
-    "status": "VERIFIED",
-    "confidence": 98,
-    "kycLevel": "FULL",
-    "documentVerification": {
-      "businessRegistration": "VERIFIED",
-      "taxId": "VERIFIED",
-      "directorIds": "VERIFIED"
-    },
-    "embeddedWallet": {
-      "address": "xdc1234...5678",
-      "created": "2025-05-25T10:30:00Z",
-      "multiSigEnabled": true
-    },
-    "riskFlags": [],
-    "complianceScore": 95
-  }
-}
-```
-
-**How We Use This Data:**
-- ✅ **Instant Authentication:** No waiting for document reviews
-- 🔒 **Embedded Wallet:** Secure transaction capability
-- 📊 **Compliance Score:** Feeds into overall risk calculation
-- 🚨 **Fraud Detection:** Real-time monitoring for suspicious patterns
 
 #### Step 2: Credit Analysis Agent (QUEX Oracle)
 
-```javascript
-// Traditional Way: Manual credit bureau checks
-❌ Request reports → Wait for responses → Manual analysis → Call references
-⏱️ Time: 3-5 days | 💰 Cost: $500-800 | 🔍 Accuracy: 78%
+```python
+# Traditional Way: Manual credit bureau checks
+# ❌ Request reports → Wait for responses → Manual analysis → Call references
+# ⏱️ Time: 3-5 days | 💰 Cost: $500-800 | 🔍 Accuracy: 78%
 
-// Our Agentic Approach: QUEX Oracle Integration
-✅ Real-time financial data aggregation and AI analysis
+# Our Agentic Approach: QUEX Oracle Integration
+# ✅ Real-time financial data aggregation and AI analysis
+
+from src.agents.credit_agent import CreditAnalysisAgent
+from src.integrations.quex_oracle import QuexOracleClient
+import google.generativeai as genai
+
+class CreditAnalysisAgent:
+    def __init__(self, quex_client: QuexOracleClient, gemini_client):
+        self.quex_oracle = quex_client
+        self.gemini_llm = gemini_client
+    
+    async def analyze_credit(self, company_id: str) -> dict:
+        """Analyze credit using QUEX Oracle data and AI"""
+        try:
+            quex_data = await self.quex_oracle.get_comprehensive_report(company_id)
+            
+            # AI-powered analysis
+            insights = await self.gemini_llm.analyze({
+                "credit_score": quex_data["credit_score"],
+                "financial_trends": quex_data["trends"],
+                "industry_data": quex_data["industry_benchmarks"],
+                "payment_patterns": quex_data["payment_history"]
+            })
+            
+            return {
+                "score": self._calculate_risk_score(insights),
+                "confidence": insights["confidence"],
+                "reasoning": insights["explanation"],
+                "recommendations": insights["actions"],
+                "credit_profile": {
+                    "overall_score": 782,
+                    "rating_agency": "A-",
+                    "financial_health": {
+                        "revenue": {
+                            "current": 2300000,
+                            "growth": 15.2,
+                            "consistency": "HIGH"
+                        },
+                        "profitability": {
+                            "net_margin": 18.5,
+                            "gross_margin": 65.2,
+                            "trend": "IMPROVING"
+                        },
+                        "liquidity": {
+                            "current_ratio": 2.1,
+                            "quick_ratio": 1.8,
+                            "cash_reserves": 340000
+                        }
+                    },
+                    "payment_history": {
+                        "on_time_rate": 97.3,
+                        "average_payment_days": 28,
+                        "late_payments": 2,
+                        "default_history": []
+                    },
+                    "market_data": {
+                        "industry_growth": 12.8,
+                        "competitive_position": "STRONG",
+                        "market_volatility": "LOW"
+                    },
+                    "banking_relationships": {
+                        "primary_bank": "DBS Bank",
+                        "credit_lines": 500000,
+                        "utilization": 23.4
+                    }
+                }
+            }
+        except Exception as e:
+            raise Exception(f"Credit analysis failed: {str(e)}")
+    
+    def _calculate_risk_score(self, insights: dict) -> int:
+        """Calculate risk score based on AI insights"""
+        # Implementation for risk score calculation
+        return min(100, max(0, insights.get("base_score", 50)))
 ```
 
-**QUEX Oracle Data Retrieved:**
-```json
-{
-  "creditProfile": {
-    "overallScore": 782,
-    "ratingAgency": "A-",
-    "financialHealth": {
-      "revenue": {
-        "current": 2300000,
-        "growth": 15.2,
-        "consistency": "HIGH"
-      },
-      "profitability": {
-        "netMargin": 18.5,
-        "grossMargin": 65.2,
-        "trend": "IMPROVING"
-      },
-      "liquidity": {
-        "currentRatio": 2.1,
-        "quickRatio": 1.8,
-        "cashReserves": 340000
-      }
-    },
-    "paymentHistory": {
-      "onTimeRate": 97.3,
-      "averagePaymentDays": 28,
-      "latePayments": 2,
-      "defaultHistory": []
-    },
-    "marketData": {
-      "industryGrowth": 12.8,
-      "competitivePosition": "STRONG",
-      "marketVolatility": "LOW"
-    },
-    "bankingRelationships": {
-      "primaryBank": "DBS Bank",
-      "creditLines": 500000,
-      "utilization": 23.4
-    }
-  }
-}
-```
+#### Step 3: Risk Scoring Agent (Gemini LLM Synthesis)
 
-**How We Use This Data:**
-- 📊 **Real-time Scoring:** Instant credit assessment without delays
-- 📈 **Trend Analysis:** AI identifies improving/declining patterns
-- 🏦 **Banking Data:** Validates financial stability
-- 💼 **Industry Context:** Adjusts risk based on sector performance
+```python
+# Traditional Way: Manual risk committee
+# ❌ Committee meeting → Discussion → Subjective scoring → Documentation
+# ⏱️ Time: 1-2 days | 💰 Cost: $800-1200 | 🔍 Accuracy: 75%
 
-#### Step 3: Market Intelligence Agent (QUEX Oracle + AI)
+# Our Agentic Approach: AI-Powered Risk Synthesis
+# ✅ Intelligent synthesis of all data points with explanatory reasoning
 
-```javascript
-// Traditional Way: Manual market research
-❌ Google research → Industry reports → Economic analysis → Manual synthesis
-⏱️ Time: 1-2 days | 💰 Cost: $300-500 | 🔍 Accuracy: 70%
+from src.agents.risk_agent import RiskScoringAgent
+from src.integrations.xdc_blockchain import XDCContract
+import asyncio
 
-// Our Agentic Approach: AI-Powered Market Intelligence
-✅ Real-time market data analysis with predictive insights
-```
-
-**Market Intelligence Data:**
-```json
-{
-  "marketAnalysis": {
-    "sectorHealth": {
-      "softwareDevelopment": {
-        "growthRate": 14.2,
-        "outlook": "POSITIVE",
-        "keyTrends": ["AI adoption", "Cloud migration", "Digital transformation"]
-      }
-    },
-    "geographicRisk": {
-      "singapore": {
-        "politicalStability": 95,
-        "economicGrowth": 3.2,
-        "currencyStability": "HIGH"
-      }
-    },
-    "supplyChainFactors": {
-      "disruption": "LOW",
-      "costPressures": "MODERATE",
-      "availability": "GOOD"
-    }
-  }
-}
-```
-
-#### Step 4: Risk Scoring Agent (Gemini LLM Synthesis)
-
-```javascript
-// Traditional Way: Manual risk committee
-❌ Committee meeting → Discussion → Subjective scoring → Documentation
-⏱️ Time: 1-2 days | 💰 Cost: $800-1200 | 🔍 Accuracy: 75%
-
-// Our Agentic Approach: AI-Powered Risk Synthesis
-✅ Intelligent synthesis of all data points with explanatory reasoning
-```
-
-**Final Risk Assessment:**
-```json
-{
-  "riskAssessment": {
-    "overallScore": 18,
-    "riskLevel": "LOW",
-    "confidence": 96,
-    "recommendation": "APPROVE_STANDARD_TERMS",
-    "factors": {
-      "identityVerification": {
-        "score": 95,
-        "weight": 15,
-        "impact": "POSITIVE"
-      },
-      "creditworthiness": {
-        "score": 782,
-        "weight": 40,
-        "impact": "VERY_POSITIVE"
-      },
-      "paymentHistory": {
-        "score": 97.3,
-        "weight": 25,
-        "impact": "VERY_POSITIVE"
-      },
-      "marketConditions": {
-        "score": 85,
-        "weight": 20,
-        "impact": "POSITIVE"
-      }
-    },
-    "aiReasoning": "TechFlow Solutions demonstrates strong financial fundamentals with consistent growth, excellent payment history, and operates in a thriving sector. Singapore's stable economic environment further reduces risk. Recommend approval with standard 60-day terms.",
-    "suggestedTerms": {
-      "interestRate": 8.5,
-      "collateralRequired": false,
-      "creditLimit": 250000,
-      "paymentTerms": "Net 60"
-    },
-    "blockchainRecord": "xdc9876...1234"
-  }
-}
+class RiskScoringAgent:
+    def __init__(self, identity_agent, credit_agent, market_agent, xdc_contract, gemini_client):
+        self.identity_agent = identity_agent
+        self.credit_agent = credit_agent
+        self.market_agent = market_agent
+        self.xdc_contract = xdc_contract
+        self.gemini_llm = gemini_client
+    
+    async def synthesize_risk(self, invoice_data: dict) -> dict:
+        """Multi-Agent Risk Assessment synthesis"""
+        try:
+            # Gather data from all agents in parallel
+            identity_task = self.identity_agent.verify(invoice_data["buyer"])
+            credit_task = self.credit_agent.analyze(invoice_data["buyer"])
+            market_task = self.market_agent.assess_conditions(invoice_data["industry"])
+            
+            identity, credit, market = await asyncio.gather(
+                identity_task, credit_task, market_task
+            )
+            
+            # AI-powered synthesis
+            risk_assessment = await self.gemini_llm.synthesize({
+                "identity_trust": identity["trust_score"],
+                "creditworthiness": credit["score"],
+                "market_conditions": market["outlook"],
+                "invoice_amount": invoice_data["amount"],
+                "payment_terms": invoice_data["terms"],
+                "historical_data": await self._get_historical_performance(invoice_data["buyer"])
+            })
+            
+            # Store on blockchain
+            tx_hash = await self.xdc_contract.store_assessment({
+                "invoice_id": invoice_data["id"],
+                "risk_score": risk_assessment["score"],
+                "factors": risk_assessment["factors"],
+                "timestamp": int(asyncio.get_event_loop().time())
+            })
+            
+            return {
+                **risk_assessment,
+                "blockchain_record": tx_hash,
+                "decision_path": self._explain_decision(risk_assessment),
+                "risk_assessment": {
+                    "overall_score": 18,
+                    "risk_level": "LOW",
+                    "confidence": 96,
+                    "recommendation": "APPROVE_STANDARD_TERMS",
+                    "factors": {
+                        "identity_verification": {
+                            "score": 95,
+                            "weight": 15,
+                            "impact": "POSITIVE"
+                        },
+                        "creditworthiness": {
+                            "score": 782,
+                            "weight": 40,
+                            "impact": "VERY_POSITIVE"
+                        },
+                        "payment_history": {
+                            "score": 97.3,
+                            "weight": 25,
+                            "impact": "VERY_POSITIVE"
+                        },
+                        "market_conditions": {
+                            "score": 85,
+                            "weight": 20,
+                            "impact": "POSITIVE"
+                        }
+                    },
+                    "ai_reasoning": "TechFlow Solutions demonstrates strong financial fundamentals with consistent growth, excellent payment history, and operates in a thriving sector. Singapore's stable economic environment further reduces risk. Recommend approval with standard 60-day terms.",
+                    "suggested_terms": {
+                        "interest_rate": 8.5,
+                        "collateral_required": False,
+                        "credit_limit": 250000,
+                        "payment_terms": "Net 60"
+                    },
+                    "blockchain_record": "xdc9876...1234"
+                }
+            }
+        except Exception as e:
+            raise Exception(f"Risk synthesis failed: {str(e)}")
+    
+    async def _get_historical_performance(self, buyer_id: str) -> dict:
+        """Get historical performance data"""
+        # Implementation for historical data retrieval
+        return {"average_payment_days": 30, "default_rate": 0.02}
+    
+    def _explain_decision(self, assessment: dict) -> dict:
+        """Explain the decision-making process"""
+        return {
+            "reasoning_steps": assessment.get("reasoning_steps", []),
+            "key_factors": assessment.get("key_factors", {}),
+            "confidence_intervals": assessment.get("confidence_intervals", {})
+        }
 ```
 
 ## 🔄 Traditional vs Agentic Approach Deep Dive
@@ -507,28 +688,6 @@ graph TD
     H --> M[No Transparency]
 ```
 
-**Traditional Workflow Breakdown:**
-
-1. **Document Collection (Day 1-2)**
-   - Manual upload and review of invoices
-   - Phone calls to verify company details
-   - Email exchanges for missing information
-
-2. **Credit Verification (Day 3-5)**
-   - Requests to multiple credit bureaus
-   - Waiting for report delivery
-   - Manual compilation of data
-
-3. **Analysis & Decision (Day 6-8)**
-   - Risk analyst manual review
-   - Committee scheduling and meeting
-   - Subjective scoring and decision
-
-4. **Documentation (Day 9-10)**
-   - Manual report creation
-   - Decision logging in systems
-   - Client notification
-
 ### Our Agentic Approach
 
 ```mermaid
@@ -547,148 +706,119 @@ graph TD
     K --> L[Full Transparency]
 ```
 
-**Agentic Workflow Advantages:**
-
-1. **Parallel Processing**: All agents work simultaneously
-2. **Real-time Data**: Live feeds from QUEX and Civic
-3. **AI Consistency**: No human bias or fatigue
-4. **Blockchain Transparency**: Immutable audit trail
-5. **Continuous Learning**: Models improve over time
-
 ## 🔌 QUEX Oracle & Civic Auth Deep Integration
 
-### QUEX Oracle: The Financial Intelligence Engine
+### QUEX Oracle Integration Example
 
-**What QUEX Provides:**
-- Real-time credit scores from 200+ data sources
-- Banking transaction patterns and cash flow analysis
-- Industry benchmarking and peer comparison
-- Economic indicators and market sentiment
-- Payment behavior predictions
+```python
+from src.integrations.quex_oracle import QuexOracleClient
+import httpx
+import asyncio
 
-**How We Leverage QUEX Data:**
-
-```javascript
-// QUEX Integration Example
-class CreditAnalysisAgent {
-  async analyzeCredit(companyId) {
-    const quexData = await this.quexOracle.getComprehensiveReport(companyId);
+class QuexOracleClient:
+    def __init__(self, api_key: str, base_url: str = "https://api.quex.io"):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.client = httpx.AsyncClient()
     
-    // AI-powered analysis
-    const insights = await this.geminiLLM.analyze({
-      creditScore: quexData.creditScore,
-      financialTrends: quexData.trends,
-      industryData: quexData.industryBenchmarks,
-      paymentPatterns: quexData.paymentHistory
-    });
-    
-    return {
-      score: this.calculateRiskScore(insights),
-      confidence: insights.confidence,
-      reasoning: insights.explanation,
-      recommendations: insights.actions
-    };
-  }
-}
+    async def get_comprehensive_report(self, company_id: str) -> dict:
+        """Get comprehensive financial report from QUEX Oracle"""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = await self.client.get(
+                f"{self.base_url}/v1/companies/{company_id}/comprehensive",
+                headers=headers
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            raise Exception(f"QUEX Oracle API error: {str(e)}")
 ```
 
-**Real-time Data Advantages:**
-- 📊 **Live Updates**: Credit scores update in real-time
-- 🔍 **Deep Analysis**: 500+ data points per company
-- 🎯 **Predictive**: 30-day payment probability forecasts
-- 🌐 **Global Coverage**: 150+ countries and territories
+### Civic Auth Integration Example
 
-### Civic Auth: The Identity Trust Layer
+```python
+from src.integrations.civic_auth import CivicAuthClient
+import httpx
+from typing import Dict, Any
 
-**What Civic Auth Provides:**
-- Decentralized identity verification
-- Embedded wallet creation and management
-- KYC/AML compliance automation
-- Fraud detection and prevention
-- Multi-factor authentication
-
-**How We Leverage Civic Auth:**
-
-```javascript
-// Civic Auth Integration Example
-class IdentityVerificationAgent {
-  async verifyIdentity(userData) {
-    // Civic Auth verification
-    const verification = await this.civicAuth.verify({
-      documents: userData.documents,
-      biometrics: userData.biometrics,
-      businessRegistration: userData.businessInfo
-    });
+class CivicAuthClient:
+    def __init__(self, api_key: str, base_url: str = "https://api.civic.com"):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.client = httpx.AsyncClient()
     
-    // Create embedded wallet
-    const wallet = await this.civicAuth.createEmbeddedWallet({
-      userId: verification.userId,
-      permissions: ['invoice_trading', 'payment_processing']
-    });
+    async def verify(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Verify user identity through Civic Auth"""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "documents": user_data.get("documents"),
+            "biometrics": user_data.get("biometrics"),
+            "business_registration": user_data.get("business_registration")
+        }
+        
+        try:
+            response = await self.client.post(
+                f"{self.base_url}/v1/verify",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            raise Exception(f"Civic Auth API error: {str(e)}")
     
-    // Generate trust score
-    const trustScore = this.calculateTrustScore({
-      kycLevel: verification.kycLevel,
-      documentAuthenticity: verification.documentScores,
-      fraudRisk: verification.riskAssessment
-    });
-    
-    return {
-      verified: verification.status === 'VERIFIED',
-      trustScore: trustScore,
-      wallet: wallet.address,
-      compliance: verification.complianceLevel
-    };
-  }
-}
+    async def create_embedded_wallet(self, wallet_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create embedded wallet for user"""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = await self.client.post(
+                f"{self.base_url}/v1/wallets/embedded",
+                headers=headers,
+                json=wallet_data
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            raise Exception(f"Civic Auth wallet creation error: {str(e)}")
 ```
 
-**Trust Layer Benefits:**
-- 🔐 **Zero-Knowledge Proofs**: Privacy-preserving verification
-- ⚡ **Instant Verification**: Sub-30-second identity confirmation
-- 🛡️ **Fraud Prevention**: AI-powered suspicious activity detection
-- 💳 **Embedded Wallets**: Seamless blockchain interaction
+## 🚀 Real-World Impact Examples
 
-## 🎯 Risk Assessment Synthesis
+### Case Study 1: Cross-Border Trade Finance
 
-### How Our Agents Collaborate
+```python
+# Civic Auth handles multi-jurisdiction identity
+civic_client = CivicAuthClient(api_key=os.getenv("CIVIC_AUTH_API_KEY"))
 
-```javascript
-// Multi-Agent Risk Assessment
-class RiskScoringAgent {
-  async synthesizeRisk(invoiceData) {
-    // Gather data from all agents
-    const [identity, credit, market] = await Promise.all([
-      this.identityAgent.verify(invoiceData.buyer),
-      this.creditAgent.analyze(invoiceData.buyer),
-      this.marketAgent.assessConditions(invoiceData.industry)
-    ]);
-    
-    // AI-powered synthesis
-    const riskAssessment = await this.geminiLLM.synthesize({
-      identityTrust: identity.trustScore,
-      creditworthiness: credit.score,
-      marketConditions: market.outlook,
-      invoiceAmount: invoiceData.amount,
-      paymentTerms: invoiceData.terms,
-      historicalData: await this.getHistoricalPerformance(invoiceData.buyer)
-    });
-    
-    // Store on blockchain
-    const txHash = await this.xdcContract.storeAssessment({
-      invoiceId: invoiceData.id,
-      riskScore: riskAssessment.score,
-      factors: riskAssessment.factors,
-      timestamp: Date.now()
-    });
-    
-    return {
-      ...riskAssessment,
-      blockchainRecord: txHash,
-      decisionPath: this.explainDecision(riskAssessment)
-    };
-  }
-}
+global_identity = await civic_client.verify_global({
+    "primary_jurisdiction": "Singapore",
+    "trading_jurisdictions": ["USA", "EU", "UK"],
+    "compliance_requirements": ["GDPR", "SOX", "MAS"]
+})
+
+# QUEX provides global market intelligence  
+quex_client = QuexOracleClient(api_key=os.getenv("QUEX_ORACLE_API_KEY"))
+
+cross_border_risk = await quex_client.get_global_risk_profile({
+    "exporter_country": "Singapore",
+    "importer_country": "Germany", 
+    "currency": "EUR",
+    "amount": 500000,
+    "trade_route": "sea_freight"
+})
 ```
 
 ## 🤝 Contributing
@@ -699,166 +829,15 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ```bash
 # Install development dependencies
-npm install --dev
+pip install -r requirements-dev.txt
 
 # Run tests
-npm test
+python -m pytest tests/
 
 # Run linting
-npm run lint
+python -m flake8 src/
+python -m black src/
 
 # Start development server
-npm run dev
+python -m uvicorn src.main:app --reload
 ```
-
-
-## 💡 Why QUEX Oracle & Civic Auth Transform Risk Assessment
-
-### The Data Revolution: QUEX Oracle
-
-**Traditional Credit Assessment Pain Points:**
-- Outdated credit reports (often 30-90 days old)
-- Limited data sources (3-5 bureaus)
-- No real-time market context
-- Manual data compilation and analysis
-
-**QUEX Oracle Transformation:**
-```javascript
-// Traditional approach
-const creditScore = await experian.getReport(companyId); // 2-day wait
-const analysis = manualAnalysis(creditScore); // 1-2 days
-
-// QUEX Oracle approach  
-const liveData = await quex.getRealTimeProfile(companyId); // 30 seconds
-const aiInsights = await gemini.analyze(liveData); // AI-powered, instant
-```
-
-**QUEX Advantage Matrix:**
-
-| Data Category | Traditional | QUEX Oracle + AI |
-|---------------|-------------|------------------|
-| **Credit Score** | Monthly updates | Real-time updates |
-| **Payment History** | 12-month snapshot | 5+ year analysis |
-| **Market Context** | None | Live industry data |
-| **Predictive Power** | Historical only | AI-powered forecasting |
-| **Data Sources** | 3-5 bureaus | 200+ sources |
-| **Processing Time** | Days | Seconds |
-
-### The Trust Revolution: Civic Auth
-
-**Traditional Identity Verification Issues:**
-- Manual document review (prone to fraud)
-- No single source of truth
-- Complex compliance processes
-- High operational costs
-
-**Civic Auth Transformation:**
-```javascript
-// Traditional KYC process
-const docs = await collectDocuments(); // 1-2 days
-const verification = await manualReview(docs); // 2-3 days
-const compliance = await regulatoryCheck(); // 1-2 days
-
-// Civic Auth process
-const identity = await civic.verifyComplete(userData); // 30 seconds
-const wallet = await civic.createEmbeddedWallet(); // Instant
-const compliance = identity.complianceLevel; // Auto-generated
-```
-
-**Civic Auth Impact:**
-
-| Verification Aspect | Traditional | Civic Auth |
-|--------------------|-------------|------------|
-| **Document Fraud Detection** | Manual review (70% accuracy) | AI + Blockchain (98% accuracy) |
-| **Identity Persistence** | Per-transaction verification | Persistent decentralized ID |
-| **Wallet Integration** | Separate process | Embedded creation |
-| **Compliance Automation** | Manual processes | Automated compliance scoring |
-| **User Experience** | Multiple steps/days | Single-step verification |
-
-## 🚀 Real-World Impact Examples
-
-### Case Study 1: TechCorp Invoice Processing
-
-**Before (Traditional Method):**
-- **Day 1-2:** Manual document collection and review
-- **Day 3-5:** Credit bureau report requests and waiting
-- **Day 6-7:** Risk committee meeting and analysis
-- **Day 8:** Final approval with $1,200 processing cost
-- **Result:** 8-day process, high cost, limited accuracy
-
-**After (Our Agentic System):**
-```
-🚀 Invoice submitted at 10:00 AM
-🔐 Civic Auth verification complete at 10:00:30 AM
-📊 QUEX Oracle data retrieved at 10:02:30 AM  
-🤖 AI risk assessment complete at 10:03:30 AM
-⛓️ Blockchain record stored at 10:04:00 AM
-✅ Approval notification sent at 10:04:00 AM
-
-Total time: 4 minutes | Cost: $8 | Accuracy: 97%
-```
-
-### Case Study 2: Cross-Border Trade Finance
-
-**Traditional Challenges:**
-- Multiple jurisdiction compliance
-- Currency and political risk assessment
-- Extended verification times
-- High cross-border transaction costs
-
-**Our Solution:**
-```javascript
-// Civic Auth handles multi-jurisdiction identity
-const globalIdentity = await civic.verifyGlobal({
-  primaryJurisdiction: 'Singapore',
-  tradingJurisdictions: ['USA', 'EU', 'UK'],
-  complianceRequirements: ['GDPR', 'SOX', 'MAS']
-});
-
-// QUEX provides global market intelligence
-const crossBorderRisk = await quex.getGlobalRiskProfile({
-  exporterCountry: 'Singapore',
-  importerCountry: 'Germany',
-  currency: 'EUR',
-  amount: 500000,
-  tradeRoute: 'sea_freight'
-});
-```
-
-**Results:**
-- **Compliance:** Automated across 12 jurisdictions
-- **Speed:** 5-minute cross-border assessment vs 2-3 weeks
-- **Cost:** $15 vs $5,000+ traditional processing
-- **Accuracy:** 96% with real-time risk updates
-
-## 🔮 Future Enhancements
-
-### Advanced QUEX Integration Roadmap
-
-**Phase 1: Enhanced Data Sources**
-- Real-time banking transaction analysis
-- Social sentiment analysis for company reputation
-- Supply chain disruption monitoring
-- ESG (Environmental, Social, Governance) scoring
-
-**Phase 2: Predictive Analytics**
-- 90-day payment probability forecasting
-- Market crash early warning system
-- Industry-specific risk models
-- Seasonal trend adjustments
-
-### Advanced Civic Auth Integration
-
-**Phase 1: Enhanced Identity Features**
-- Biometric authentication integration
-- Multi-signature wallet support
-- Corporate hierarchy verification
-- Automated director/officer verification
-
-**Phase 2: Regulatory Expansion**
-- Global passport integration
-- Automated tax compliance checking
-- Real-time sanctions list monitoring
-- Dynamic risk-based authentication
-
-</div>
